@@ -1,0 +1,36 @@
+type User {
+    id: ID!
+    firstName: String!
+    lastName: String!
+    email: String!
+    password: String!
+    organisationId: String
+    created_at: Int!
+    updatedAt: Int
+    disabled: Boolean
+    role: Int
+}
+
+type Token {
+    token: String!
+    expiredAt: Int!
+}
+
+
+input NewUser{
+    firstName: String!
+    lastName: String!
+    email: String!
+    password: String!
+    organisationId: String
+}
+
+type Query {
+    user: [User]!
+}
+
+
+type Mutation {
+    createUser(input: NewUser!): User!
+    login(email: String!, password: String!): Token!
+}

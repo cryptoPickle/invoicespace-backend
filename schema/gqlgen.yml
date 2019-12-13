@@ -1,0 +1,19 @@
+# .gqlgen.yml example
+#
+# Refer to https://gqlgen.com/config/
+# for detailed .gqlgen.yml documentation.
+
+schema:
+- schema.graphql
+exec:
+  filename: ../graphqlServer/generated.go
+
+model:
+  filename: ../graphqlServer/models/models.go
+  package: models
+resolver:
+  filename: ../graphqlServer/resolver/apiresolver.go
+  type: Resolver
+models:
+  Halil:
+    model: github.com/cryptopickle/invoicespace/app/api.Todo
