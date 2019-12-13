@@ -11,14 +11,6 @@ import (
 	"log"
 )
 
-type PostgressConnectionString struct {
-	Host string
-	Port int
-	User string
-	DatabaseName string
-	SSLMode string
-	Password string
-}
 
 type Client struct {
 	PgClient *sql.DB
@@ -40,6 +32,16 @@ func NewPostgress(credentials string) (*Client, error) {
 	migration(credentials, driver);
 
 	return &Client{PgClient: pg }, nil
+}
+
+
+type PostgressConnectionString struct {
+	Host string
+	Port int
+	User string
+	DatabaseName string
+	SSLMode string
+	Password string
 }
 
 func (pcs *PostgressConnectionString) ConnString() string {
