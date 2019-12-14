@@ -1,35 +1,38 @@
 package psql
 
 import (
-	"database/sql"
 	"fmt"
-	"github.com/golang-migrate/migrate"
-	"github.com/golang-migrate/migrate/database"
-	"github.com/golang-migrate/migrate/database/postgres"
-	_ "github.com/golang-migrate/migrate/source/file"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"log"
 )
 
 
 type Client struct {
-	PgClient *sql.DB
+	PgClient *sqlx.DB
 }
 
 func NewPostgress(credentials string) (*Client, error) {
-	pg, err := sql.Open("postgres", credentials)
+	pg, err := sqlx.Connect("postgres", credentials)
 
 	if err != nil {
 		return nil, err
 	}
-
 	err = pg.Ping()
 
 	if err != nil {
 		return nil, err
 	}
-	driver, err := postgres.WithInstance(pg, &postgres.Config{});
-	migration(credentials, driver);
+	driver, err := postgres.WithInstance(pg.DB, &postgres.Config{});
+	err = migration(driver)
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	return &Client{PgClient: pg }, nil
 }
@@ -48,15 +51,21 @@ func (pcs *PostgressConnectionString) ConnString() string {
 	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s", pcs.Host, pcs.Port, pcs.User, pcs.Password, pcs.DatabaseName, pcs.SSLMode)
 };
 
-func migration(dbName string, driver database.Driver) {
-	m, err := migrate.NewWithDatabaseInstance("file://db/migrations", "postgres", driver)
+func migration(driver database.Driver) error {
+
+	m, err := migrate.NewWithDatabaseInstance("file://db/migrations/", "postgres", driver)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if err := m.Up(); err != nil {
-		log.Fatal(err)
+		if err == migrate.ErrNoChange{
+			log.Println("Database Migration No Change!")
+			return nil
+		}
+		return err
 	}
 
 	log.Println("Database Migrated")
+	return nil
 }

@@ -25,16 +25,17 @@ func main(){
 		Port: 5432,
 		SSLMode: "disable",
 		DatabaseName: "users",
-		Password: "",
+		Password: "test",
 		User: "postgres",
 	}
 
 	psql, err := psql.NewPostgress(pcs.ConnString());
+
 	if err != nil {
 		panic(err)
 	}
 
-	defer psql.PgClient.Close();
+	 defer psql.PgClient.DB.Close()
 
 	r := mux.NewRouter()
 	r.Handle("/", handler.Playground("Graphql Playground", "/graphql"))
