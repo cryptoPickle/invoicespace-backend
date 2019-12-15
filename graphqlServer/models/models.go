@@ -11,8 +11,9 @@ type NewUser struct {
 }
 
 type Token struct {
-	Token     string `json:"token"`
-	ExpiredAt int    `json:"expiredAt"`
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
+	ExpiredAt    int    `json:"expiredAt"`
 }
 
 type User struct {

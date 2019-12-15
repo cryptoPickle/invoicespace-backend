@@ -12,7 +12,8 @@ type User {
 }
 
 type Token {
-    token: String!
+    accessToken: String!
+    refreshToken: String!
     expiredAt: Int!
 }
 

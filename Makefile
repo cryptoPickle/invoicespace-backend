@@ -4,4 +4,4 @@ generate-schemas:
 run-state:
 	docker kill users-postgres | true
 	docker rm users-postgres -f | true
-	docker run --name users-postgres -e POSTGRES_DB=users -d -p 5432:5432 postgres | true
+	docker run --name users-postgres -e POSTGRES_DB=users  -d -p 5432:5432 postgres | true

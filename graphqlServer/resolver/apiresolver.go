@@ -2,7 +2,7 @@ package resolver
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"github.com/cryptopickle/invoicespace/app/api/psql"
 	"github.com/cryptopickle/invoicespace/auth"
 	"log"
@@ -48,12 +48,20 @@ func (r *mutationResolver) Login(ctx context.Context, email string, password str
 	user, err := r.Client.GetUserByEmail(email);
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	fmt.Println(user)
+	if ok := auth.ComparePassword(password, user.Password); !ok {
+		return nil, errors.New("Incorrect Credentials")
+	}
+
+	refreshT := auth.JwtCrate(user.ID, time.Now().Add(time.Hour * 8760).Unix())
+
+	r.Client.SaveRefreshToken(refreshT, user.ID)
+
 	return &models.Token{
-		Token:     auth.JwtCrate("123sda", time.Now().Add(time.Hour *  1).Unix()),
+		AccessToken:     auth.JwtCrate(user.ID, time.Now().Add(time.Hour *  1).Unix()),
+		RefreshToken: refreshT,
 		ExpiredAt: int(time.Now().Add(time.Hour * 1).Unix()),
 	}, nil
 }

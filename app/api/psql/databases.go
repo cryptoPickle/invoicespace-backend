@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/cryptopickle/invoicespace/app/api"
 	"github.com/cryptopickle/invoicespace/graphqlServer/models"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
@@ -85,7 +86,7 @@ func (c *Client) GetUserByEmail(email string) (*models.User, error) {
 
 	switch err := stmt.QueryRow(email).Scan(&u.ID, &u.FirstName, &u.LastName, &u.Email, &u.Password, &u.OrganisationID, &u.Disabled, &u.Role); err {
 		case sql.ErrNoRows:
-			return nil, errors.New("")
+			return nil, errors.New("invalid credentials")
 		case nil:
 			return &u, nil
 		default:
@@ -93,6 +94,26 @@ func (c *Client) GetUserByEmail(email string) (*models.User, error) {
 	}
 }
 
+
+func (c *Client) SaveRefreshToken(refreshToken, userId string) *api.RefreshToken {
+	query := `INSERT INTO token_revoke_list (refreshToken, user_id) VALUES ($1, $2) RETURNING token_id`
+
+	stmt, err := c.PgClient.Prepare(query)
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer stmt.Close()
+
+	var tkn api.RefreshToken
+
+	if err := stmt.QueryRow(refreshToken, userId).Scan(&tkn.TokenId); err != nil{
+		panic(err)
+	}
+
+	return &tkn
+}
 type PostgressConnectionString struct {
 	Host string
 	Port int
