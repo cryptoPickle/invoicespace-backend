@@ -114,6 +114,33 @@ func (c *Client) SaveRefreshToken(refreshToken, userId string) *api.RefreshToken
 
 	return &tkn
 }
+
+
+
+func (c *Client) RevokeRefreshToken(userid string) (*string, error) {
+  query := `DELETE FROM token_revoke_list WHERE user_id=$1 RETURNING token_id`
+
+  stmt, err := c.PgClient.Prepare(query)
+
+  if err != nil {
+    panic(err)
+  }
+
+  defer stmt.Close();
+
+  var TokenId string
+
+  switch err := stmt.QueryRow(userid).Scan(&TokenId); err {
+    case sql.ErrNoRows:
+      return nil, errors.New("invalid credentials")
+    case nil:
+      return &TokenId, nil
+    default:
+      panic(err)
+  }
+}
+
+
 type PostgressConnectionString struct {
 	Host string
 	Port int

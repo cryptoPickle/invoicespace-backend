@@ -1,16 +1,17 @@
 package main
 
 import (
-	"fmt"
-	"github.com/99designs/gqlgen/handler"
-	"github.com/cryptopickle/invoicespace/app/api/psql"
-	"github.com/cryptopickle/invoicespace/auth"
-	"github.com/cryptopickle/invoicespace/graphqlServer"
-	"github.com/cryptopickle/invoicespace/graphqlServer/resolver"
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
-	"log"
-	"net/http"
+  "fmt"
+  "github.com/99designs/gqlgen/handler"
+  "github.com/cryptopickle/invoicespace/auth"
+  "github.com/cryptopickle/invoicespace/db/cache"
+  "github.com/cryptopickle/invoicespace/db/psql"
+  "github.com/cryptopickle/invoicespace/graphqlServer"
+  "github.com/cryptopickle/invoicespace/graphqlServer/resolver"
+  "github.com/gorilla/mux"
+  "github.com/rs/cors"
+  "log"
+  "net/http"
 )
 
 func main(){
@@ -37,10 +38,19 @@ func main(){
 
 	 defer psql.PgClient.DB.Close()
 
+	rc, err := cache.NewClient();
+
+	if err != nil {
+	  panic(err)
+  }
+
+	defer rc.Client.Close()
+
+
 	r := mux.NewRouter()
 	r.Handle("/", handler.Playground("Graphql Playground", "/graphql"))
 
-	rslv  := resolver.Resolver{psql}
+	rslv  := resolver.Resolver{psql, rc}
 	cfg := graphqlServer.Config{Resolvers: &rslv}
 
 	schemas := graphqlServer.NewExecutableSchema(cfg)
