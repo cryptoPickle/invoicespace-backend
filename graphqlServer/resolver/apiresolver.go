@@ -2,9 +2,9 @@ package resolver
 
 import (
 	"context"
+	"fmt"
 	"github.com/cryptopickle/invoicespace/app/api/psql"
 	"github.com/cryptopickle/invoicespace/auth"
-	"github.com/google/uuid"
 	"log"
 	"time"
 
@@ -33,19 +33,25 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input models.NewUser)
 		log.Fatal("Cannot create user",err)
 	}
 	u := &models.User{
-		ID:            uuid.New().String(),
 		FirstName:     input.FirstName,
 		LastName:      input.LastName,
 		Email:          input.Email,
 		Password:       string(pass),
 		OrganisationID: input.OrganisationID,
-		CreatedAt:      int(time.Now().Unix()),
 	}
+	log.Println(u)
+	r.Client.CreateUser(u);
 
 	return u, nil
 }
 func (r *mutationResolver) Login(ctx context.Context, email string, password string) (*models.Token, error) {
-	//DO LOGIC
+	user, err := r.Client.GetUserByEmail(email);
+
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(user)
 	return &models.Token{
 		Token:     auth.JwtCrate("123sda", time.Now().Add(time.Hour *  1).Unix()),
 		ExpiredAt: int(time.Now().Add(time.Hour * 1).Unix()),
