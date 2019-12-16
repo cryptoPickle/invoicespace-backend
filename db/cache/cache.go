@@ -5,17 +5,14 @@ import (
   "time"
 )
 
+
 type Client struct {
   *redis.Client
 }
 
 
-func NewClient() ( *Client, error ){
-  client := redis.NewClient(&redis.Options{
-    Addr: "localhost:6379",
-    Password: "",
-    DB: 0,
-  })
+func NewClient(options *redis.Options) ( *Client, error ){
+  client := redis.NewClient(options)
   _, err := client.Ping().Result();
 
   if err != nil {
@@ -25,12 +22,14 @@ func NewClient() ( *Client, error ){
   return &Client{client}, nil
 }
 
-func(c *Client) AddToken(userId, token string) (*bool, error) {
+
+
+func(c *Client) AddToken(userId, token string) *bool {
   set, err := c.Client.SetNX(userId, token, time.Hour * 1).Result()
 
   if err != nil {
-    return nil, err
+    panic(err)
   }
 
-  return &set, nil
+  return &set
 }

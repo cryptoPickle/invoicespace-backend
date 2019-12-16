@@ -8,7 +8,8 @@ import (
   "github.com/cryptopickle/invoicespace/db/psql"
   "github.com/cryptopickle/invoicespace/graphqlServer"
   "github.com/cryptopickle/invoicespace/graphqlServer/resolver"
-  "github.com/gorilla/mux"
+	"github.com/go-redis/redis/v7"
+	"github.com/gorilla/mux"
   "github.com/rs/cors"
   "log"
   "net/http"
@@ -38,7 +39,13 @@ func main(){
 
 	 defer psql.PgClient.DB.Close()
 
-	rc, err := cache.NewClient();
+	options := &redis.Options{
+		Addr: "localhost:6379",
+		Password: "",
+		DB: 0,
+	}
+
+	rc, err := cache.NewClient(options);
 
 	if err != nil {
 	  panic(err)
@@ -50,7 +57,7 @@ func main(){
 	r := mux.NewRouter()
 	r.Handle("/", handler.Playground("Graphql Playground", "/graphql"))
 
-	rslv  := resolver.Resolver{psql, rc}
+	rslv  := resolver.Resolver{Psql: psql, Redis: rc}
 	cfg := graphqlServer.Config{Resolvers: &rslv}
 
 	schemas := graphqlServer.NewExecutableSchema(cfg)

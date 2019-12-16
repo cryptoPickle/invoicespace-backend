@@ -3,7 +3,8 @@ package resolver
 import (
 	"context"
 	"errors"
-	"github.com/cryptopickle/invoicespace/auth"
+  "fmt"
+  "github.com/cryptopickle/invoicespace/auth"
   "github.com/cryptopickle/invoicespace/db/cache"
   "github.com/cryptopickle/invoicespace/db/psql"
 	"log"
@@ -16,8 +17,8 @@ import (
 // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
 
 type Resolver struct{
-	psql *psql.Client
-	redis *cache.Client
+	Psql  *psql.Client
+	Redis *cache.Client
 }
 
 func (r *Resolver) Mutation() graphqlServer.MutationResolver {
@@ -42,12 +43,12 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input models.NewUser)
 		OrganisationID: input.OrganisationID,
 	}
 	log.Println(u)
-	r.psql.CreateUser(u);
+	r.Psql.CreateUser(u);
 
 	return u, nil
 }
 func (r *mutationResolver) Login(ctx context.Context, email string, password string) (*models.Token, error) {
-	user, err := r.psql.GetUserByEmail(email);
+	user, err := r.Psql.GetUserByEmail(email);
 
 	if err != nil {
 		return nil, err
@@ -59,10 +60,15 @@ func (r *mutationResolver) Login(ctx context.Context, email string, password str
 
 	refreshT := auth.JwtCrate(user.ID, time.Now().Add(time.Hour * 8760).Unix())
 
-	r.psql.SaveRefreshToken(refreshT, user.ID)
+	r.Psql.SaveRefreshToken(refreshT, user.ID)
 
+	accessT := auth.JwtCrate(user.ID, time.Now().Add(time.Hour *  1).Unix())
+
+	ok := r.Redis.AddToken(user.ID, accessT)
+
+  fmt.Println(*ok)
 	return &models.Token{
-		AccessToken:     auth.JwtCrate(user.ID, time.Now().Add(time.Hour *  1).Unix()),
+		AccessToken:    accessT ,
 		RefreshToken: refreshT,
 		ExpiredAt: int(time.Now().Add(time.Hour * 1).Unix()),
 	}, nil
