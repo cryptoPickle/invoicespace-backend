@@ -3,10 +3,10 @@ package resolver
 import (
 	"context"
 	"errors"
-  "fmt"
-  "github.com/cryptopickle/invoicespace/auth"
-  "github.com/cryptopickle/invoicespace/db/cache"
-  "github.com/cryptopickle/invoicespace/db/psql"
+	"github.com/cryptopickle/invoicespace/app/api/refreshToken"
+	"github.com/cryptopickle/invoicespace/app/api/users"
+	"github.com/cryptopickle/invoicespace/auth"
+	"github.com/cryptopickle/invoicespace/db/cache"
 	"log"
 	"time"
 
@@ -17,7 +17,8 @@ import (
 // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
 
 type Resolver struct{
-	Psql  *psql.Client
+	Users *users.Client
+	RefreshToken *refreshToken.Client
 	Redis *cache.Client
 }
 
@@ -30,6 +31,10 @@ func (r *Resolver) Query() graphqlServer.QueryResolver {
 
 type mutationResolver struct{ *Resolver }
 
+func (r *mutationResolver) CreateOrganisation(ctx context.Context, input models.NewOrganisation) (*models.Organisation, error) {
+	panic("implement me")
+}
+
 func (r *mutationResolver) CreateUser(ctx context.Context, input models.NewUser) (*models.User, error) {
 	pass, err := auth.HashPassword(input.Password)
 	if err != nil {
@@ -41,14 +46,15 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input models.NewUser)
 		Email:          input.Email,
 		Password:       string(pass),
 		OrganisationID: input.OrganisationID,
+		Role: &input.Role,
 	}
 	log.Println(u)
-	r.Psql.CreateUser(u);
+	r.Users.CreateUser(u);
 
 	return u, nil
 }
 func (r *mutationResolver) Login(ctx context.Context, email string, password string) (*models.Token, error) {
-	user, err := r.Psql.GetUserByEmail(email);
+	user, err := r.Users.GetUserByEmail(email);
 
 	if err != nil {
 		return nil, err
@@ -60,13 +66,13 @@ func (r *mutationResolver) Login(ctx context.Context, email string, password str
 
 	refreshT := auth.JwtCrate(user.ID, time.Now().Add(time.Hour * 8760).Unix())
 
-	r.Psql.SaveRefreshToken(refreshT, user.ID)
+	r.RefreshToken.SaveRefreshToken(refreshT, user.ID)
 
 	accessT := auth.JwtCrate(user.ID, time.Now().Add(time.Hour *  1).Unix())
 
-	ok := r.Redis.AddToken(user.ID, accessT)
+  r.Redis.AddToken(user.ID, accessT)
 
-  fmt.Println(*ok)
+
 	return &models.Token{
 		AccessToken:    accessT ,
 		RefreshToken: refreshT,

@@ -8,7 +8,7 @@ type User {
     created_at: Int!
     updatedAt: Int
     disabled: Boolean
-    role: Int
+    role: String
 }
 
 type Token {
@@ -17,21 +17,43 @@ type Token {
     expiredAt: Int!
 }
 
+type Query {
+    user: [User]!
+}
+
+type Organisation {
+    id: ID!
+    name: String!
+    description: String
+    userPoolId: String!
+    workerLimit: Int!
+    userLimit: Int!
+    disabled: Boolean
+    created_at: Int!
+    updated_at: Int,
+}
+
+type OrganisationUsers {
+    organisationId: String
+    userId : String
+}
 
 input NewUser{
     firstName: String!
     lastName: String!
     email: String!
     password: String!
-    organisationId: String
+    organisationId: String,
+    Role: String!
 }
 
-type Query {
-    user: [User]!
+input NewOrganisation {
+    name: String!
+    description: String
 }
-
 
 type Mutation {
     createUser(input: NewUser!): User!
     login(email: String!, password: String!): Token!
+    createOrganisation(input: NewOrganisation!): Organisation!
 }

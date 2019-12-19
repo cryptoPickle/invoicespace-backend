@@ -1,22 +1,22 @@
 package main
 
 import (
-  "fmt"
-  "github.com/99designs/gqlgen/handler"
-  "github.com/cryptopickle/invoicespace/auth"
-  "github.com/cryptopickle/invoicespace/db/cache"
-  "github.com/cryptopickle/invoicespace/db/psql"
-  "github.com/cryptopickle/invoicespace/graphqlServer"
-  "github.com/cryptopickle/invoicespace/graphqlServer/resolver"
+	"fmt"
+	"github.com/99designs/gqlgen/handler"
+	"github.com/cryptopickle/invoicespace/app/api/refreshToken"
+	"github.com/cryptopickle/invoicespace/app/api/users"
+	"github.com/cryptopickle/invoicespace/auth"
+	"github.com/cryptopickle/invoicespace/db/cache"
+	"github.com/cryptopickle/invoicespace/db/psql"
+	"github.com/cryptopickle/invoicespace/graphqlServer"
+	"github.com/cryptopickle/invoicespace/graphqlServer/resolver"
 	"github.com/go-redis/redis/v7"
 	"github.com/gorilla/mux"
-  "github.com/rs/cors"
-  "log"
-  "net/http"
+	"log"
+	"net/http"
 )
 
 func main(){
-	var lh http.Handler
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println("Recovered from main", r)
@@ -31,13 +31,13 @@ func main(){
 		User: "postgres",
 	}
 
-	psql, err := psql.NewPostgress(pcs.ConnString());
+	newPostgress, err := psql.NewPostgress(pcs.ConnString());
 
 	if err != nil {
 		panic(err)
 	}
 
-	 defer psql.PgClient.DB.Close()
+	 defer newPostgress.PgClient.DB.Close()
 
 	options := &redis.Options{
 		Addr: "localhost:6379",
@@ -55,26 +55,39 @@ func main(){
 
 
 	r := mux.NewRouter()
+	mw := auth.NewAuthMiddleware(rc)
+	r.Use(mw.HTTPMiddleware)
 	r.Handle("/", handler.Playground("Graphql Playground", "/graphql"))
 
-	rslv  := resolver.Resolver{Psql: psql, Redis: rc}
+	rslv  := newResolvers(newPostgress, rc);
+
 	cfg := graphqlServer.Config{Resolvers: &rslv}
 
 	schemas := graphqlServer.NewExecutableSchema(cfg)
 
 	r.Handle("/graphql", handler.GraphQL(schemas))
 
-	lh = auth.HTTPMiddleware(r)
+	//cos := cors.New(cors.Options{
+	//	AllowedMethods: []string{"GET", "POST", "HEAD", "OPTIONS", "PUT", "DELETE"},
+	//	AllowedOrigins: []string{"*"},
+	//	AllowedHeaders: []string{"*"},
+	//})
+	//r.Use(cos.Handler)
 
-	cos := cors.New(cors.Options{
-		AllowedMethods: []string{"GET", "POST", "HEAD", "OPTIONS", "PUT", "DELETE"},
-		AllowedOrigins: []string{"*"},
-		AllowedHeaders: []string{"*"},
-	})
-
-	lh = cos.Handler(lh);
-
-	http.Handle("/", lh)
+	http.Handle("/", r)
 	log.Println("Server Started")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+
+func newResolvers(psql *psql.Client, cache *cache.Client) resolver.Resolver {
+	u := users.Client{psql}
+	t := refreshToken.Client{psql}
+
+	return resolver.Resolver{
+		Users:        &u,
+		RefreshToken: &t,
+		Redis:        cache,
+	}
+
 }
