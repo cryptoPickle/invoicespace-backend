@@ -1,8 +1,9 @@
 package api
 
+
 const (
-  Admin = 0
-  OrganisationAdmin = 1
-  OrganisationWorker = 2
-  BaseUser = 3
+  Admin = 3
+  OrganisationAdmin = 2
+  OrganisationWorker = 1
+  BaseUser = 0
 )

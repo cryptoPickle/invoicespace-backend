@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"errors"
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/cryptopickle/invoicespace/app/api"
 	"github.com/cryptopickle/invoicespace/db/cache"
 	"github.com/dgrijalva/jwt-go"
@@ -20,7 +22,7 @@ type ContextKey struct {
 }
 
 type UserClaims struct {
-	UserId string `json:"user_id"`
+	User *api.User
 	jwt.StandardClaims
 }
 
@@ -41,8 +43,13 @@ func(m *AuthMiddleware) HTTPMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		token := GetTokenFromHeader(h)
-		userId := UserIdFromToken(token)
-		isMatch := m.cache.IsTokenMatches(userId, token)
+		user, err := ValidateToken(token)
+
+		if err != nil {
+			http.Error(w, "Token error", http.StatusInternalServerError)
+			return
+		}
+		isMatch := m.cache.IsTokenMatches(user.ID, token)
 
 
 		if !*isMatch {
@@ -55,9 +62,6 @@ func(m *AuthMiddleware) HTTPMiddleware(next http.Handler) http.Handler {
 		ip, _,_ := net.SplitHostPort(r.RemoteAddr)
 
 		userAuth := &api.Params{
-			User: &api.User{
-				ID:             userId,
-			},
 			Request: &api.Request{
 				IPAdress: ip,
 				Token:    token,
@@ -70,10 +74,43 @@ func(m *AuthMiddleware) HTTPMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func authorise(ctx context.Context) (*api.Params, error){
+	apiParams, ok := ctx.Value(userCtxKey).(*api.Params)
 
-func ForContext(ctx context.Context) *api.Params {
-	raw, _ := ctx.Value(userCtxKey).(*api.Params)
-	return raw
+	if !ok {
+		return nil, errors.New("Wrong params")
+	}
+
+	if apiParams.Request.Token == "" {
+		return nil, errors.New("Unauthorised")
+	}
+
+	usr, err := ValidateToken(apiParams.Request.Token);
+
+	if err != nil {
+		return nil, errors.New("Token Error")
+	}
+
+	if usr == nil {
+		return nil, errors.New("No user")
+	}
+
+	apiParams.User = usr
+
+	return apiParams, nil
+
+}
+
+func Authorise(ctx context.Context, obj interface{}, next graphql.Resolver) (interface{}, error) {
+	log.Println("Checking Authorisation")
+	params, err := authorise(ctx)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	ctx = context.WithValue(ctx, userCtxKey, params)
+	return next(ctx)
 }
 
 func GetTokenFromHeader(header string) string {
@@ -86,20 +123,20 @@ func GetTokenFromHeader(header string) string {
 	return token
 }
 
-func UserIdFromToken(token string) string {
+func ValidateToken(token string) (*api.User, error) {
 	returnToken, err := JWTDecode(token)
 
 	if err != nil {
-		return ""
+		return nil, err
 	}
 
 	if claims, ok := returnToken.Claims.(*UserClaims); ok && returnToken.Valid {
 		if claims == nil {
-			return ""
+			return nil, errors.New("Invalid Token")
 		}
-		return claims.UserId
+		return  claims.User, nil
 	} else {
-		return ""
+		return nil, errors.New("Invalid Token")
 	}
 }
 func HashPassword(p string)([]byte, error) {
@@ -116,4 +153,9 @@ func ComparePassword(p, hash string) bool {
 		return true
 	}
 	return false
+}
+
+func GetUserFromContext(ctx context.Context) *api.User {
+	raw, _ := ctx.Value(userCtxKey).(*api.Params)
+	return raw.User
 }

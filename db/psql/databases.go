@@ -1,6 +1,8 @@
 package psql
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
@@ -70,3 +72,14 @@ func migration(driver database.Driver) error {
 	return nil
 }
 
+func HandleError(err error) error {
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return errors.New("ErrNoRows: Something went wrong")
+		default:
+			return err
+		}
+	}
+	return nil
+}

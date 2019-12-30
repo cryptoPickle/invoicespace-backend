@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -40,6 +41,7 @@ type ResolverRoot interface {
 }
 
 type DirectiveRoot struct {
+	Authorize func(ctx context.Context, obj interface{}, next graphql.Resolver) (res interface{}, err error)
 }
 
 type ComplexityRoot struct {
@@ -333,7 +335,9 @@ func (e *executableSchema) Query(ctx context.Context, op *ast.OperationDefinitio
 	ec := executionContext{graphql.GetRequestContext(ctx), e}
 
 	buf := ec.RequestMiddleware(ctx, func(ctx context.Context) []byte {
-		data := ec._Query(ctx, op.SelectionSet)
+		data := ec._queryMiddleware(ctx, op, func(ctx context.Context) (interface{}, error) {
+			return ec._Query(ctx, op.SelectionSet), nil
+		})
 		var buf bytes.Buffer
 		data.MarshalGQL(&buf)
 		return buf.Bytes()
@@ -350,7 +354,9 @@ func (e *executableSchema) Mutation(ctx context.Context, op *ast.OperationDefini
 	ec := executionContext{graphql.GetRequestContext(ctx), e}
 
 	buf := ec.RequestMiddleware(ctx, func(ctx context.Context) []byte {
-		data := ec._Mutation(ctx, op.SelectionSet)
+		data := ec._mutationMiddleware(ctx, op, func(ctx context.Context) (interface{}, error) {
+			return ec._Mutation(ctx, op.SelectionSet), nil
+		})
 		var buf bytes.Buffer
 		data.MarshalGQL(&buf)
 		return buf.Bytes()
@@ -387,7 +393,16 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 }
 
 var parsedSchema = gqlparser.MustLoadSchema(
-	&ast.Source{Name: "schema.graphql", Input: `type User {
+	&ast.Source{Name: "schema.graphql", Input: `directive @authorize on QUERY | MUTATION | SUBSCRIPTION | FIELD_DEFINITION
+
+
+type Mutation {
+    createUser(input: NewUser!): User!
+    login(email: String!, password: String!): Token!
+    createOrganisation(input: NewOrganisation!): Organisation @authorize
+}
+
+type User {
     id: ID!
     firstName: String!
     lastName: String!
@@ -397,7 +412,7 @@ var parsedSchema = gqlparser.MustLoadSchema(
     created_at: Int!
     updatedAt: Int
     disabled: Boolean
-    role: String
+    role: Int
 }
 
 type Token {
@@ -433,18 +448,12 @@ input NewUser{
     email: String!
     password: String!
     organisationId: String,
-    Role: String!
+    Role: Int!
 }
 
 input NewOrganisation {
     name: String!
     description: String
-}
-
-type Mutation {
-    createUser(input: NewUser!): User!
-    login(email: String!, password: String!): Token!
-    createOrganisation(input: NewOrganisation!): Organisation!
 }
 `},
 )
@@ -548,6 +557,89 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ***************************** args.gotpl *****************************
 
 // region    ************************** directives.gotpl **************************
+
+func (ec *executionContext) _queryMiddleware(ctx context.Context, obj *ast.OperationDefinition, next func(ctx context.Context) (interface{}, error)) graphql.Marshaler {
+
+	for _, d := range obj.Directives {
+		switch d.Name {
+		case "authorize":
+			n := next
+			next = func(ctx context.Context) (interface{}, error) {
+				if ec.directives.Authorize == nil {
+					return nil, errors.New("directive authorize is not implemented")
+				}
+				return ec.directives.Authorize(ctx, obj, n)
+			}
+		}
+	}
+	tmp, err := next(ctx)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if data, ok := tmp.(graphql.Marshaler); ok {
+		return data
+	}
+	ec.Errorf(ctx, `unexpected type %T from directive, should be graphql.Marshaler`, tmp)
+	return graphql.Null
+
+}
+
+func (ec *executionContext) _mutationMiddleware(ctx context.Context, obj *ast.OperationDefinition, next func(ctx context.Context) (interface{}, error)) graphql.Marshaler {
+
+	for _, d := range obj.Directives {
+		switch d.Name {
+		case "authorize":
+			n := next
+			next = func(ctx context.Context) (interface{}, error) {
+				if ec.directives.Authorize == nil {
+					return nil, errors.New("directive authorize is not implemented")
+				}
+				return ec.directives.Authorize(ctx, obj, n)
+			}
+		}
+	}
+	tmp, err := next(ctx)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if data, ok := tmp.(graphql.Marshaler); ok {
+		return data
+	}
+	ec.Errorf(ctx, `unexpected type %T from directive, should be graphql.Marshaler`, tmp)
+	return graphql.Null
+
+}
+
+func (ec *executionContext) _subscriptionMiddleware(ctx context.Context, obj *ast.OperationDefinition, next func(ctx context.Context) (interface{}, error)) func() graphql.Marshaler {
+	for _, d := range obj.Directives {
+		switch d.Name {
+		case "authorize":
+			n := next
+			next = func(ctx context.Context) (interface{}, error) {
+				if ec.directives.Authorize == nil {
+					return nil, errors.New("directive authorize is not implemented")
+				}
+				return ec.directives.Authorize(ctx, obj, n)
+			}
+		}
+	}
+	tmp, err := next(ctx)
+	if err != nil {
+		ec.Error(ctx, err)
+		return func() graphql.Marshaler {
+			return graphql.Null
+		}
+	}
+	if data, ok := tmp.(func() graphql.Marshaler); ok {
+		return data
+	}
+	ec.Errorf(ctx, `unexpected type %T from directive, should be graphql.Marshaler`, tmp)
+	return func() graphql.Marshaler {
+		return graphql.Null
+	}
+}
 
 // endregion ************************** directives.gotpl **************************
 
@@ -666,23 +758,40 @@ func (ec *executionContext) _Mutation_createOrganisation(ctx context.Context, fi
 	rctx.Args = args
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateOrganisation(rctx, args["input"].(models.NewOrganisation))
+		directive0 := func(rctx context.Context) (interface{}, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Mutation().CreateOrganisation(rctx, args["input"].(models.NewOrganisation))
+		}
+		directive1 := func(ctx context.Context) (interface{}, error) {
+			if ec.directives.Authorize == nil {
+				return nil, errors.New("directive authorize is not implemented")
+			}
+			return ec.directives.Authorize(ctx, nil, directive0)
+		}
+
+		tmp, err := directive1(rctx)
+		if err != nil {
+			return nil, err
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(*models.Organisation); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *github.com/cryptopickle/invoicespace/graphqlServer/models.Organisation`, tmp)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
 	res := resTmp.(*models.Organisation)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNOrganisation2ᚖgithubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐOrganisation(ctx, field.Selections, res)
+	return ec.marshalOOrganisation2ᚖgithubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐOrganisation(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Organisation_id(ctx context.Context, field graphql.CollectedField, obj *models.Organisation) (ret graphql.Marshaler) {
@@ -1652,10 +1761,10 @@ func (ec *executionContext) _User_role(ctx context.Context, field graphql.Collec
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*string)
+	res := resTmp.(*int)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
@@ -2871,7 +2980,7 @@ func (ec *executionContext) unmarshalInputNewUser(ctx context.Context, obj inter
 			}
 		case "Role":
 			var err error
-			it.Role, err = ec.unmarshalNString2string(ctx, v)
+			it.Role, err = ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2916,9 +3025,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			}
 		case "createOrganisation":
 			out.Values[i] = ec._Mutation_createOrganisation(ctx, field)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3450,20 +3556,6 @@ func (ec *executionContext) unmarshalNNewUser2githubᚗcomᚋcryptopickleᚋinvo
 	return ec.unmarshalInputNewUser(ctx, v)
 }
 
-func (ec *executionContext) marshalNOrganisation2githubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐOrganisation(ctx context.Context, sel ast.SelectionSet, v models.Organisation) graphql.Marshaler {
-	return ec._Organisation(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNOrganisation2ᚖgithubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐOrganisation(ctx context.Context, sel ast.SelectionSet, v *models.Organisation) graphql.Marshaler {
-	if v == nil {
-		if !ec.HasError(graphql.GetResolverContext(ctx)) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	return ec._Organisation(ctx, sel, v)
-}
-
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {
 	return graphql.UnmarshalString(v)
 }
@@ -3813,6 +3905,17 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 		return graphql.Null
 	}
 	return ec.marshalOInt2int(ctx, sel, *v)
+}
+
+func (ec *executionContext) marshalOOrganisation2githubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐOrganisation(ctx context.Context, sel ast.SelectionSet, v models.Organisation) graphql.Marshaler {
+	return ec._Organisation(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOOrganisation2ᚖgithubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐOrganisation(ctx context.Context, sel ast.SelectionSet, v *models.Organisation) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Organisation(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {

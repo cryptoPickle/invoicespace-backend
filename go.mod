@@ -14,4 +14,5 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/vektah/gqlparser v1.2.0
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
+	golang.org/x/tools v0.0.0-20190515012406-7d7faa4812bd
 )

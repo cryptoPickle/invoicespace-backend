@@ -13,7 +13,7 @@ type NewUser struct {
 	Email          string  `json:"email"`
 	Password       string  `json:"password"`
 	OrganisationID *string `json:"organisationId"`
-	Role           string  `json:"Role"`
+	Role           int     `json:"Role"`
 }
 
 type Organisation struct {
@@ -49,5 +49,5 @@ type User struct {
 	CreatedAt      int     `json:"created_at"`
 	UpdatedAt      *int    `json:"updatedAt"`
 	Disabled       *bool   `json:"disabled"`
-	Role           *string `json:"role"`
+	Role           *int    `json:"role"`
 }

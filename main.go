@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/99designs/gqlgen/handler"
+	"github.com/cryptopickle/invoicespace/app/api/organisations"
 	"github.com/cryptopickle/invoicespace/app/api/refreshToken"
+	"github.com/cryptopickle/invoicespace/app/api/user_pool"
 	"github.com/cryptopickle/invoicespace/app/api/users"
 	"github.com/cryptopickle/invoicespace/auth"
 	"github.com/cryptopickle/invoicespace/db/cache"
@@ -61,7 +63,10 @@ func main(){
 
 	rslv  := newResolvers(newPostgress, rc);
 
+
 	cfg := graphqlServer.Config{Resolvers: &rslv}
+
+	cfg.Directives.Authorize = auth.Authorise
 
 	schemas := graphqlServer.NewExecutableSchema(cfg)
 
@@ -82,12 +87,15 @@ func main(){
 
 func newResolvers(psql *psql.Client, cache *cache.Client) resolver.Resolver {
 	u := users.Client{psql}
+	up := user_pool.Client{psql}
+	o := organisations.Client{O: psql, U: &up }
 	t := refreshToken.Client{psql}
 
 	return resolver.Resolver{
 		Users:        &u,
 		RefreshToken: &t,
 		Redis:        cache,
+		Organisations: &o,
 	}
 
 }

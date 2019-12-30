@@ -9,6 +9,6 @@ CREATE TABLE users(
     organisation_id UUID,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at integer ,
-    disabled BOOLEAN ,
-    role int
+    disabled BOOLEAN DEFAULT false,
+    role int default 0
 )

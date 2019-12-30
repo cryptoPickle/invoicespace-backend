@@ -3,9 +3,9 @@ CREATE TABLE organisations (
     name varchar(50) UNIQUE NOT NULL,
     description varchar(500),
     user_pool_id UUID UNIQUE DEFAULT uuid_generate_v4(),
-    worker_limit INT NOT NULL,
-    user_limit INT NOT NULL,
-    disabled BOOLEAN,
+    worker_limit INT NOT NULL default 1,
+    user_limit INT NOT NULL default 1,
+    disabled BOOLEAN DEFAULT false,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at integer
 )

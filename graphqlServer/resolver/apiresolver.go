@@ -3,6 +3,7 @@ package resolver
 import (
 	"context"
 	"errors"
+	"github.com/cryptopickle/invoicespace/app/api/organisations"
 	"github.com/cryptopickle/invoicespace/app/api/refreshToken"
 	"github.com/cryptopickle/invoicespace/app/api/users"
 	"github.com/cryptopickle/invoicespace/auth"
@@ -19,6 +20,7 @@ import (
 type Resolver struct{
 	Users *users.Client
 	RefreshToken *refreshToken.Client
+	Organisations *organisations.Client
 	Redis *cache.Client
 }
 
@@ -32,7 +34,28 @@ func (r *Resolver) Query() graphqlServer.QueryResolver {
 type mutationResolver struct{ *Resolver }
 
 func (r *mutationResolver) CreateOrganisation(ctx context.Context, input models.NewOrganisation) (*models.Organisation, error) {
-	panic("implement me")
+	var disabled = false
+	user := auth.GetUserFromContext(ctx);
+	orgId, err := r.Organisations.CreateOrganisation(models.Organisation{
+		Name:        input.Name,
+		Description: input.Description,
+		WorkerLimit: 1,
+		UserLimit:   3,
+		Disabled:    &disabled,
+	}, user.ID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = r.Users.UpdateUserRole(user.ID, 2)
+
+	if err != nil {
+		return nil, err
+	}
+	return  &models.Organisation{
+		ID: *orgId,
+	}, nil
 }
 
 func (r *mutationResolver) CreateUser(ctx context.Context, input models.NewUser) (*models.User, error) {
@@ -64,11 +87,11 @@ func (r *mutationResolver) Login(ctx context.Context, email string, password str
 		return nil, errors.New("Incorrect Credentials")
 	}
 
-	refreshT := auth.JwtCrate(user.ID, time.Now().Add(time.Hour * 8760).Unix())
+	refreshT := auth.JwtCrate(user, time.Now().Add(time.Hour * 8760).Unix())
 
 	r.RefreshToken.SaveRefreshToken(refreshT, user.ID)
 
-	accessT := auth.JwtCrate(user.ID, time.Now().Add(time.Hour *  1).Unix())
+	accessT := auth.JwtCrate(user, time.Now().Add(time.Hour *  1).Unix())
 
   r.Redis.AddToken(user.ID, accessT)
 

@@ -1,3 +1,19 @@
+directive @authorize on QUERY | MUTATION | SUBSCRIPTION | FIELD_DEFINITION
+directive @role(role: [Role!]!) on QUERY | MUTATION | SUBSCRIPTION | FIELD_DEFINITION
+
+enum Role {
+    Admin
+    OrganisationAdmin
+    OrganisationWorker
+    BaseUser
+}
+
+type Mutation {
+    createUser(input: NewUser!): User!
+    login(email: String!, password: String!): Token!
+    createOrganisation(input: NewOrganisation!): Organisation @authorize
+}
+
 type User {
     id: ID!
     firstName: String!
@@ -8,7 +24,7 @@ type User {
     created_at: Int!
     updatedAt: Int
     disabled: Boolean
-    role: String
+    role: Int
 }
 
 type Token {
@@ -44,16 +60,10 @@ input NewUser{
     email: String!
     password: String!
     organisationId: String,
-    Role: String!
+    Role: Int!
 }
 
 input NewOrganisation {
     name: String!
     description: String
-}
-
-type Mutation {
-    createUser(input: NewUser!): User!
-    login(email: String!, password: String!): Token!
-    createOrganisation(input: NewOrganisation!): Organisation!
 }

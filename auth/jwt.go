@@ -1,6 +1,10 @@
 package auth
 
-import "github.com/dgrijalva/jwt-go"
+import (
+	"github.com/cryptopickle/invoicespace/app/api"
+	"github.com/cryptopickle/invoicespace/graphqlServer/models"
+	"github.com/dgrijalva/jwt-go"
+)
 
 var signKey = []byte("dummy")
 
@@ -10,9 +14,12 @@ func JWTDecode(token string) (*jwt.Token, error) {
 	})
 }
 
-func JwtCrate(userId string, expiredAt int64) string {
+func JwtCrate(user *models.User, expiredAt int64) string {
 	claims := UserClaims{
-		UserId:         userId,
+		User: &api.User{
+			ID:             user.ID,
+			Role:           *user.Role,
+		},
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expiredAt,
 			Issuer: "dummy",

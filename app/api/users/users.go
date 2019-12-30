@@ -1,8 +1,6 @@
 package users
 
 import (
-  "database/sql"
-  "errors"
   "github.com/cryptopickle/invoicespace/db/psql"
   "github.com/cryptopickle/invoicespace/graphqlServer/models"
   "log"
@@ -54,12 +52,30 @@ func (c *Client) GetUserByEmail(email string) (*models.User, error) {
 
   var u models.User
 
-  switch err := stmt.QueryRow(email).Scan(&u.ID, &u.FirstName, &u.LastName, &u.Email, &u.Password, &u.OrganisationID, &u.Disabled, &u.Role); err {
-  case sql.ErrNoRows:
-    return nil, errors.New("invalid credentials")
-  case nil:
-    return &u, nil
-  default:
-    panic(err)
+  err = stmt.QueryRow(email).Scan(&u.ID, &u.FirstName, &u.LastName, &u.Email, &u.Password, &u.OrganisationID, &u.Disabled, &u.Role);
+  checkErr := psql.HandleError(err)
+  if checkErr != nil {
+    return nil, checkErr
   }
+  return &u, nil
+}
+
+func (c *Client) UpdateUserRole(userId string, userRole int) (*models.User, error) {
+  query := `UPDATE users SET role = $2 WHERE user_id = $1 RETURNING user_id, role`
+
+  stmt, err := c.PgClient.Prepare(query)
+
+  if err != nil {
+    return nil, err
+  }
+
+  var user models.User
+  err = stmt.QueryRow(userId, userRole).Scan(&user.ID, &user.Role)
+  checkErr := psql.HandleError(err)
+
+  if checkErr != nil {
+    return nil, checkErr
+  }
+
+  return &user, nil
 }
