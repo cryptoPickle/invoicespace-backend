@@ -33,9 +33,16 @@ func (r *Resolver) Query() graphqlServer.QueryResolver {
 
 type mutationResolver struct{ *Resolver }
 
+func (r *mutationResolver) AssignUser(ctx context.Context, input *models.AssignUser) (*models.User, error) {
+	panic("implement me")
+}
+
 func (r *mutationResolver) CreateOrganisation(ctx context.Context, input models.NewOrganisation) (*models.Organisation, error) {
 	var disabled = false
-	user := auth.GetUserFromContext(ctx);
+	user, err := auth.GetUserFromContext(ctx);
+	if err != nil {
+		return nil, err
+	}
 	orgId, err := r.Organisations.CreateOrganisation(models.Organisation{
 		Name:        input.Name,
 		Description: input.Description,

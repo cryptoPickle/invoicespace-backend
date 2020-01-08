@@ -155,7 +155,18 @@ func ComparePassword(p, hash string) bool {
 	return false
 }
 
-func GetUserFromContext(ctx context.Context) *api.User {
-	raw, _ := ctx.Value(userCtxKey).(*api.Params)
-	return raw.User
+func GetUserFromContext(ctx context.Context) (*api.User, error) {
+	raw, found := ctx.Value(userCtxKey).(*api.Params)
+	if !found {
+		return nil, errors.New("No params provided")
+	}
+	return raw.User, nil
+}
+
+func GetApiParams(ctx context.Context) (*api.Params, error) {
+	raw, found := ctx.Value(userCtxKey).(*api.Params)
+	if !found {
+		return nil, errors.New("No params provided")
+	}
+	return raw, nil
 }

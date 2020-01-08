@@ -42,10 +42,13 @@ type ResolverRoot interface {
 
 type DirectiveRoot struct {
 	Authorize func(ctx context.Context, obj interface{}, next graphql.Resolver) (res interface{}, err error)
+
+	Role func(ctx context.Context, obj interface{}, next graphql.Resolver, role models.Role) (res interface{}, err error)
 }
 
 type ComplexityRoot struct {
 	Mutation struct {
+		AssignUser         func(childComplexity int, input *models.AssignUser) int
 		CreateOrganisation func(childComplexity int, input models.NewOrganisation) int
 		CreateUser         func(childComplexity int, input models.NewUser) int
 		Login              func(childComplexity int, email string, password string) int
@@ -96,6 +99,7 @@ type MutationResolver interface {
 	CreateUser(ctx context.Context, input models.NewUser) (*models.User, error)
 	Login(ctx context.Context, email string, password string) (*models.Token, error)
 	CreateOrganisation(ctx context.Context, input models.NewOrganisation) (*models.Organisation, error)
+	AssignUser(ctx context.Context, input *models.AssignUser) (*models.User, error)
 }
 type QueryResolver interface {
 	User(ctx context.Context) ([]*models.User, error)
@@ -115,6 +119,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	ec := executionContext{nil, e}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "Mutation.assignUser":
+		if e.complexity.Mutation.AssignUser == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_assignUser_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AssignUser(childComplexity, args["input"].(*models.AssignUser)), true
 
 	case "Mutation.createOrganisation":
 		if e.complexity.Mutation.CreateOrganisation == nil {
@@ -394,13 +410,22 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 
 var parsedSchema = gqlparser.MustLoadSchema(
 	&ast.Source{Name: "schema.graphql", Input: `directive @authorize on QUERY | MUTATION | SUBSCRIPTION | FIELD_DEFINITION
+directive @role(role: Role!) on QUERY | MUTATION | SUBSCRIPTION | FIELD_DEFINITION
 
+enum Role {
+    Admin
+    OrganisationAdmin
+    OrganisationWorker
+    BaseUser
+}
 
 type Mutation {
     createUser(input: NewUser!): User!
     login(email: String!, password: String!): Token!
-    createOrganisation(input: NewOrganisation!): Organisation @authorize
+    createOrganisation(input: NewOrganisation!): Organisation @role(role: OrganisationAdmin) @authorize
+    assignUser(input: AssignUser): User! @role(role: OrganisationAdmin) @authorize
 }
+
 
 type User {
     id: ID!
@@ -455,12 +480,44 @@ input NewOrganisation {
     name: String!
     description: String
 }
-`},
+
+input AssignUser {
+    userId: ID!
+    role: Int!
+}`},
 )
 
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) dir_role_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 models.Role
+	if tmp, ok := rawArgs["role"]; ok {
+		arg0, err = ec.unmarshalNRole2githubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐRole(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["role"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_assignUser_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *models.AssignUser
+	if tmp, ok := rawArgs["input"]; ok {
+		arg0, err = ec.unmarshalOAssignUser2ᚖgithubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐAssignUser(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
 
 func (ec *executionContext) field_Mutation_createOrganisation_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
@@ -570,6 +627,20 @@ func (ec *executionContext) _queryMiddleware(ctx context.Context, obj *ast.Opera
 				}
 				return ec.directives.Authorize(ctx, obj, n)
 			}
+		case "role":
+			rawArgs := d.ArgumentMap(ec.Variables)
+			args, err := ec.dir_role_args(ctx, rawArgs)
+			if err != nil {
+				ec.Error(ctx, err)
+				return graphql.Null
+			}
+			n := next
+			next = func(ctx context.Context) (interface{}, error) {
+				if ec.directives.Role == nil {
+					return nil, errors.New("directive role is not implemented")
+				}
+				return ec.directives.Role(ctx, obj, n, args["role"].(models.Role))
+			}
 		}
 	}
 	tmp, err := next(ctx)
@@ -597,6 +668,20 @@ func (ec *executionContext) _mutationMiddleware(ctx context.Context, obj *ast.Op
 				}
 				return ec.directives.Authorize(ctx, obj, n)
 			}
+		case "role":
+			rawArgs := d.ArgumentMap(ec.Variables)
+			args, err := ec.dir_role_args(ctx, rawArgs)
+			if err != nil {
+				ec.Error(ctx, err)
+				return graphql.Null
+			}
+			n := next
+			next = func(ctx context.Context) (interface{}, error) {
+				if ec.directives.Role == nil {
+					return nil, errors.New("directive role is not implemented")
+				}
+				return ec.directives.Role(ctx, obj, n, args["role"].(models.Role))
+			}
 		}
 	}
 	tmp, err := next(ctx)
@@ -622,6 +707,22 @@ func (ec *executionContext) _subscriptionMiddleware(ctx context.Context, obj *as
 					return nil, errors.New("directive authorize is not implemented")
 				}
 				return ec.directives.Authorize(ctx, obj, n)
+			}
+		case "role":
+			rawArgs := d.ArgumentMap(ec.Variables)
+			args, err := ec.dir_role_args(ctx, rawArgs)
+			if err != nil {
+				ec.Error(ctx, err)
+				return func() graphql.Marshaler {
+					return graphql.Null
+				}
+			}
+			n := next
+			next = func(ctx context.Context) (interface{}, error) {
+				if ec.directives.Role == nil {
+					return nil, errors.New("directive role is not implemented")
+				}
+				return ec.directives.Role(ctx, obj, n, args["role"].(models.Role))
 			}
 		}
 	}
@@ -763,13 +864,23 @@ func (ec *executionContext) _Mutation_createOrganisation(ctx context.Context, fi
 			return ec.resolvers.Mutation().CreateOrganisation(rctx, args["input"].(models.NewOrganisation))
 		}
 		directive1 := func(ctx context.Context) (interface{}, error) {
+			role, err := ec.unmarshalNRole2githubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐRole(ctx, "OrganisationAdmin")
+			if err != nil {
+				return nil, err
+			}
+			if ec.directives.Role == nil {
+				return nil, errors.New("directive role is not implemented")
+			}
+			return ec.directives.Role(ctx, nil, directive0, role)
+		}
+		directive2 := func(ctx context.Context) (interface{}, error) {
 			if ec.directives.Authorize == nil {
 				return nil, errors.New("directive authorize is not implemented")
 			}
-			return ec.directives.Authorize(ctx, nil, directive0)
+			return ec.directives.Authorize(ctx, nil, directive1)
 		}
 
-		tmp, err := directive1(rctx)
+		tmp, err := directive2(rctx)
 		if err != nil {
 			return nil, err
 		}
@@ -792,6 +903,80 @@ func (ec *executionContext) _Mutation_createOrganisation(ctx context.Context, fi
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalOOrganisation2ᚖgithubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐOrganisation(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_assignUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+		ec.Tracer.EndFieldExecution(ctx)
+	}()
+	rctx := &graphql.ResolverContext{
+		Object:   "Mutation",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_assignUser_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		directive0 := func(rctx context.Context) (interface{}, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Mutation().AssignUser(rctx, args["input"].(*models.AssignUser))
+		}
+		directive1 := func(ctx context.Context) (interface{}, error) {
+			role, err := ec.unmarshalNRole2githubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐRole(ctx, "OrganisationAdmin")
+			if err != nil {
+				return nil, err
+			}
+			if ec.directives.Role == nil {
+				return nil, errors.New("directive role is not implemented")
+			}
+			return ec.directives.Role(ctx, nil, directive0, role)
+		}
+		directive2 := func(ctx context.Context) (interface{}, error) {
+			if ec.directives.Authorize == nil {
+				return nil, errors.New("directive authorize is not implemented")
+			}
+			return ec.directives.Authorize(ctx, nil, directive1)
+		}
+
+		tmp, err := directive2(rctx)
+		if err != nil {
+			return nil, err
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(*models.User); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *github.com/cryptopickle/invoicespace/graphqlServer/models.User`, tmp)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*models.User)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNUser2ᚖgithubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐUser(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Organisation_id(ctx context.Context, field graphql.CollectedField, obj *models.Organisation) (ret graphql.Marshaler) {
@@ -2918,6 +3103,30 @@ func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.Co
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputAssignUser(ctx context.Context, obj interface{}) (models.AssignUser, error) {
+	var it models.AssignUser
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "userId":
+			var err error
+			it.UserID, err = ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "role":
+			var err error
+			it.Role, err = ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputNewOrganisation(ctx context.Context, obj interface{}) (models.NewOrganisation, error) {
 	var it models.NewOrganisation
 	var asMap = obj.(map[string]interface{})
@@ -3025,6 +3234,11 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			}
 		case "createOrganisation":
 			out.Values[i] = ec._Mutation_createOrganisation(ctx, field)
+		case "assignUser":
+			out.Values[i] = ec._Mutation_assignUser(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3556,6 +3770,15 @@ func (ec *executionContext) unmarshalNNewUser2githubᚗcomᚋcryptopickleᚋinvo
 	return ec.unmarshalInputNewUser(ctx, v)
 }
 
+func (ec *executionContext) unmarshalNRole2githubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐRole(ctx context.Context, v interface{}) (models.Role, error) {
+	var res models.Role
+	return res, res.UnmarshalGQL(v)
+}
+
+func (ec *executionContext) marshalNRole2githubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐRole(ctx context.Context, sel ast.SelectionSet, v models.Role) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {
 	return graphql.UnmarshalString(v)
 }
@@ -3859,6 +4082,18 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalOAssignUser2githubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐAssignUser(ctx context.Context, v interface{}) (models.AssignUser, error) {
+	return ec.unmarshalInputAssignUser(ctx, v)
+}
+
+func (ec *executionContext) unmarshalOAssignUser2ᚖgithubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐAssignUser(ctx context.Context, v interface{}) (*models.AssignUser, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalOAssignUser2githubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐAssignUser(ctx, v)
+	return &res, err
 }
 
 func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v interface{}) (bool, error) {

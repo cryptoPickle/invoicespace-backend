@@ -5,6 +5,7 @@ import (
 	"github.com/99designs/gqlgen/handler"
 	"github.com/cryptopickle/invoicespace/app/api/organisations"
 	"github.com/cryptopickle/invoicespace/app/api/refreshToken"
+	"github.com/cryptopickle/invoicespace/app/api/roles"
 	"github.com/cryptopickle/invoicespace/app/api/user_pool"
 	"github.com/cryptopickle/invoicespace/app/api/users"
 	"github.com/cryptopickle/invoicespace/auth"
@@ -67,6 +68,7 @@ func main(){
 	cfg := graphqlServer.Config{Resolvers: &rslv}
 
 	cfg.Directives.Authorize = auth.Authorise
+	cfg.Directives.Role = roles.CheckRole
 
 	schemas := graphqlServer.NewExecutableSchema(cfg)
 

@@ -1,5 +1,5 @@
 directive @authorize on QUERY | MUTATION | SUBSCRIPTION | FIELD_DEFINITION
-directive @role(role: [Role!]!) on QUERY | MUTATION | SUBSCRIPTION | FIELD_DEFINITION
+directive @role(role: Role!) on QUERY | MUTATION | SUBSCRIPTION | FIELD_DEFINITION
 
 enum Role {
     Admin
@@ -11,8 +11,10 @@ enum Role {
 type Mutation {
     createUser(input: NewUser!): User!
     login(email: String!, password: String!): Token!
-    createOrganisation(input: NewOrganisation!): Organisation @authorize
+    createOrganisation(input: NewOrganisation!): Organisation @role(role: OrganisationAdmin) @authorize
+    assignUser(input: AssignUser): User! @role(role: OrganisationAdmin) @authorize
 }
+
 
 type User {
     id: ID!
@@ -66,4 +68,9 @@ input NewUser{
 input NewOrganisation {
     name: String!
     description: String
+}
+
+input AssignUser {
+    userId: ID!
+    role: Int!
 }
