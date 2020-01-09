@@ -56,3 +56,12 @@ func CheckRole(ctx context.Context, obj interface{}, next graphql.Resolver, role
 
   return next(ctx)
 }
+
+func ValidateAssignableRole(role int) bool {
+  switch RoleWrapper_Role_Name[int32(role)]  {
+    case "admin":
+      return false
+    default:
+      return true
+  }
+}

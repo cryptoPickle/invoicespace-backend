@@ -34,4 +34,3 @@ func (c *Client) CreateOrganisation(org models.Organisation, userId string) (*st
   return &organisation.ID, nil
 }
 
-

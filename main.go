@@ -98,6 +98,7 @@ func newResolvers(psql *psql.Client, cache *cache.Client) resolver.Resolver {
 		RefreshToken: &t,
 		Redis:        cache,
 		Organisations: &o,
+		UserPool: &up,
 	}
 
 }

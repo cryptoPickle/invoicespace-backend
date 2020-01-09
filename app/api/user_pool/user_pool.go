@@ -59,3 +59,27 @@ func (c *Client) AssignUser(userid, userPoolId string, role int) (*UserPool, err
   }
   return &user,nil
 }
+
+func (c *Client) IsUserInOrganisation(userId, organisationId string) (*bool, error) {
+  query := `SELECT userid FROM  user_pool LEFT JOIN user_pools ON user_pools.id = user_pool.id WHERE organisation_id = $1 AND userid = $2 `
+
+  stmt, err := c.PgClient.Prepare(query)
+
+  if err != nil {
+    return nil, err
+  }
+  var up = UserPool{}
+  if err := stmt.QueryRow(organisationId, userId).Scan(&up.UserId); err != nil {
+    return nil, err
+  }
+
+  isValid := false
+
+  if up.UserId != "" {
+    isValid = true
+    return &isValid, nil
+  }
+
+  return &isValid, nil
+
+}

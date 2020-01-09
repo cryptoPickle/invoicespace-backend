@@ -11,7 +11,7 @@ enum Role {
 type Mutation {
     createUser(input: NewUser!): User!
     login(email: String!, password: String!): Token!
-    createOrganisation(input: NewOrganisation!): Organisation @role(role: OrganisationAdmin) @authorize
+    createOrganisation(input: NewOrganisation!): Organisation  @authorize
     assignUser(input: AssignUser): User! @role(role: OrganisationAdmin) @authorize
 }
 

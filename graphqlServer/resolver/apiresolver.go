@@ -5,6 +5,8 @@ import (
 	"errors"
 	"github.com/cryptopickle/invoicespace/app/api/organisations"
 	"github.com/cryptopickle/invoicespace/app/api/refreshToken"
+	"github.com/cryptopickle/invoicespace/app/api/roles"
+	"github.com/cryptopickle/invoicespace/app/api/user_pool"
 	"github.com/cryptopickle/invoicespace/app/api/users"
 	"github.com/cryptopickle/invoicespace/auth"
 	"github.com/cryptopickle/invoicespace/db/cache"
@@ -22,6 +24,7 @@ type Resolver struct{
 	RefreshToken *refreshToken.Client
 	Organisations *organisations.Client
 	Redis *cache.Client
+	UserPool *user_pool.Client
 }
 
 func (r *Resolver) Mutation() graphqlServer.MutationResolver {
@@ -34,7 +37,38 @@ func (r *Resolver) Query() graphqlServer.QueryResolver {
 type mutationResolver struct{ *Resolver }
 
 func (r *mutationResolver) AssignUser(ctx context.Context, input *models.AssignUser) (*models.User, error) {
-	panic("implement me")
+	uctx, err := auth.GetUserFromContext(ctx);
+	if err != nil {
+		return nil, err
+	}
+
+	if uctx.OrganisationId == "" {
+		return nil, errors.New("No organisation found")
+	}
+	isValid, err := r.UserPool.IsUserInOrganisation(input.UserID, uctx.OrganisationId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !*isValid {
+		return nil, errors.New("User is not in organisation")
+	}
+	if ok := roles.ValidateAssignableRole(input.Role); !ok {
+		return nil, errors.New("Can not assing role")
+	}
+
+	user, err := r.Users.UpdateUserRole(input.UserID, input.Role);
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.User{
+		ID: user.ID,
+		Role: user.Role,
+	}, nil
+
 }
 
 func (r *mutationResolver) CreateOrganisation(ctx context.Context, input models.NewOrganisation) (*models.Organisation, error) {
