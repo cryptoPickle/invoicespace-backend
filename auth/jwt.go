@@ -19,11 +19,16 @@ func JwtCrate(user *models.User, expiredAt int64) string {
 		User: &api.User{
 			ID:             user.ID,
 			Role:           *user.Role,
+
 		},
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expiredAt,
 			Issuer: "dummy",
 		},
+	}
+
+	if user.OrganisationID != nil {
+		claims.User.OrganisationId = *user.OrganisationID
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

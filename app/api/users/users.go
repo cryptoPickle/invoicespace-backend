@@ -86,11 +86,10 @@ func (c *Client) UpdateUser(u models.User) (*models.User, error) {
     first_name = COALESCE($1, first_name),
     last_name = COALESCE($2, last_name),
     email = COALESCE($3, email),
-    password = COALESCE($4, password),
-    organisation_id = COALESCE($5, organisation_id),
-    disabled = COALESCE($6, disabled),
-    updated_at = COALESCE($7, updated_at)
-    WHERE user_id = $8 RETURNING first_name, last_name, email, organisation_id, disabled, updated_at
+    organisation_id = COALESCE($4, organisation_id),
+    disabled = COALESCE($5, disabled),
+    updated_at = COALESCE($6, updated_at)
+    WHERE user_id = $7 RETURNING first_name, last_name, email, organisation_id, disabled, updated_at, user_id
     `
 
   stmt, err := c.PgClient.Prepare(query)
@@ -103,7 +102,15 @@ func (c *Client) UpdateUser(u models.User) (*models.User, error) {
   now := int(time.Now().Unix())
   u.UpdatedAt = &now
 
-  err = stmt.QueryRow(u.FirstName, u.LastName, u.Email, u.Password, u.OrganisationID, u.Disabled, u.UpdatedAt).Scan(&user)
+  err = stmt.QueryRow(u.FirstName, u.LastName, u.Email, u.OrganisationID, u.Disabled, u.UpdatedAt, u.ID).Scan(
+    &user.FirstName,
+    &user.LastName,
+    &user.Email,
+    &user.OrganisationID,
+    &user.Disabled,
+    &user.UpdatedAt,
+    &user.ID,
+    )
   checkErr := psql.HandleError(err)
 
   if checkErr != nil {

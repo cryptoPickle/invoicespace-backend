@@ -422,7 +422,7 @@ enum Role {
 type Mutation {
     createUser(input: NewUser!): User!
     login(email: String!, password: String!): Token!
-    createOrganisation(input: NewOrganisation!): Organisation @role(role: OrganisationAdmin) @authorize
+    createOrganisation(input: NewOrganisation!): Organisation  @authorize
     assignUser(input: AssignUser): User! @role(role: OrganisationAdmin) @authorize
 }
 
@@ -864,23 +864,13 @@ func (ec *executionContext) _Mutation_createOrganisation(ctx context.Context, fi
 			return ec.resolvers.Mutation().CreateOrganisation(rctx, args["input"].(models.NewOrganisation))
 		}
 		directive1 := func(ctx context.Context) (interface{}, error) {
-			role, err := ec.unmarshalNRole2githubᚗcomᚋcryptopickleᚋinvoicespaceᚋgraphqlServerᚋmodelsᚐRole(ctx, "OrganisationAdmin")
-			if err != nil {
-				return nil, err
-			}
-			if ec.directives.Role == nil {
-				return nil, errors.New("directive role is not implemented")
-			}
-			return ec.directives.Role(ctx, nil, directive0, role)
-		}
-		directive2 := func(ctx context.Context) (interface{}, error) {
 			if ec.directives.Authorize == nil {
 				return nil, errors.New("directive authorize is not implemented")
 			}
-			return ec.directives.Authorize(ctx, nil, directive1)
+			return ec.directives.Authorize(ctx, nil, directive0)
 		}
 
-		tmp, err := directive2(rctx)
+		tmp, err := directive1(rctx)
 		if err != nil {
 			return nil, err
 		}

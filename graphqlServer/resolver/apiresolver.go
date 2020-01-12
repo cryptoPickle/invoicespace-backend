@@ -89,6 +89,15 @@ func (r *mutationResolver) CreateOrganisation(ctx context.Context, input models.
 		return nil, err
 	}
 
+	_, err = r.Users.UpdateUser(models.User{
+		OrganisationID: orgId,
+		ID: user.ID,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
 	_, err = r.Users.UpdateUserRole(user.ID, 2)
 
 	if err != nil {
