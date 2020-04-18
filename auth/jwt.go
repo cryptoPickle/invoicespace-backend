@@ -1,9 +1,9 @@
 package auth
 
 import (
-	"github.com/cryptopickle/invoicespace/app/api"
-	"github.com/cryptopickle/invoicespace/graphqlServer/models"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/invoice-space/is-backend/app/api"
+	"github.com/invoice-space/is-backend/graphqlServer/models"
 )
 
 var signKey = []byte("dummy")

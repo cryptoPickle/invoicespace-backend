@@ -1,9 +1,9 @@
 package organisations
 
 import (
-  "github.com/cryptopickle/invoicespace/app/api/user_pool"
-  "github.com/cryptopickle/invoicespace/db/psql"
-  "github.com/cryptopickle/invoicespace/graphqlServer/models"
+  "github.com/invoice-space/is-backend/app/api/user_pool"
+  "github.com/invoice-space/is-backend/db/psql"
+  "github.com/invoice-space/is-backend/graphqlServer/models"
 )
 
 type Client struct {

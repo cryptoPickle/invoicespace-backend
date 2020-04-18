@@ -4,8 +4,8 @@ import (
   "context"
   "errors"
   "github.com/99designs/gqlgen/graphql"
-  "github.com/cryptopickle/invoicespace/auth"
-  "github.com/cryptopickle/invoicespace/graphqlServer/models"
+  "github.com/invoice-space/is-backend/auth"
+  "github.com/invoice-space/is-backend/graphqlServer/models"
   "strings"
 )
 

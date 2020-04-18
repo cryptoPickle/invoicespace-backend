@@ -1,9 +1,8 @@
 package users
 
 import (
-  "github.com/cryptopickle/invoicespace/db/psql"
-  "github.com/cryptopickle/invoicespace/graphqlServer/models"
-  "log"
+  "github.com/invoice-space/is-backend/db/psql"
+  "github.com/invoice-space/is-backend/graphqlServer/models"
   "time"
 )
 
@@ -11,32 +10,38 @@ type Client struct {
   *psql.Client
 }
 
-func (c *Client) CreateUser(user  *models.User) models.User {
+
+func (c *Client) CreateUser(user  *models.User) (*models.User, error) {
   query := `INSERT INTO 
 		users ("first_name", "last_name", "email", "password", "organisation_id", "disabled", "role") 
-		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING user_id, first_name, last_name, organisation_id, role `
+		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING user_id, first_name, last_name, organisation_id, email, role `
 
   stmt, err := c.PgClient.Prepare(query);
 
   if err != nil {
-    panic(err)
+    return nil, err
   }
 
   defer stmt.Close();
 
   var u models.User
-  if err := stmt.QueryRow(
+  err = stmt.QueryRow(
     user.FirstName,
     user.LastName,
     user.Email,
     user.Password,
     user.OrganisationID,
     user.Disabled,
-    user.Role,
-  ).Scan(&u.FirstName, &u.LastName, &u.ID, &u.OrganisationID, &u.Role); err != nil {
-    log.Println(err)
+    1,
+  ).Scan(&u.ID, &u.FirstName, &u.LastName, &u.OrganisationID, &u.Email, &u.Role);
+
+  checkErr := psql.IsDuplicateEntry(err)
+
+  if checkErr != nil {
+    return nil, checkErr
   }
-  return u
+
+  return &u, nil
 }
 
 func (c *Client) GetUserByEmail(email string) (*models.User, error) {

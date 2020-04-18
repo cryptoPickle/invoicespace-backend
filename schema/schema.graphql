@@ -62,7 +62,6 @@ input NewUser{
     email: String!
     password: String!
     organisationId: String,
-    Role: Int!
 }
 
 input NewOrganisation {

@@ -13,7 +13,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
-	"github.com/cryptopickle/invoicespace/graphqlServer/models"
+	"github.com/invoice-space/is-backend/graphqlServer/models"
 	"github.com/vektah/gqlparser"
 	"github.com/vektah/gqlparser/ast"
 )
@@ -473,7 +473,6 @@ input NewUser{
     email: String!
     password: String!
     organisationId: String,
-    Role: Int!
 }
 
 input NewOrganisation {
@@ -880,7 +879,7 @@ func (ec *executionContext) _Mutation_createOrganisation(ctx context.Context, fi
 		if data, ok := tmp.(*models.Organisation); ok {
 			return data, nil
 		}
-		return nil, fmt.Errorf(`unexpected type %T from directive, should be *github.com/cryptopickle/invoicespace/graphqlServer/models.Organisation`, tmp)
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *github.com/invoice-space/is-backend/graphqlServer/models.Organisation`, tmp)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -951,7 +950,7 @@ func (ec *executionContext) _Mutation_assignUser(ctx context.Context, field grap
 		if data, ok := tmp.(*models.User); ok {
 			return data, nil
 		}
-		return nil, fmt.Errorf(`unexpected type %T from directive, should be *github.com/cryptopickle/invoicespace/graphqlServer/models.User`, tmp)
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *github.com/invoice-space/is-backend/graphqlServer/models.User`, tmp)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3174,12 +3173,6 @@ func (ec *executionContext) unmarshalInputNewUser(ctx context.Context, obj inter
 		case "organisationId":
 			var err error
 			it.OrganisationID, err = ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-		case "Role":
-			var err error
-			it.Role, err = ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
 				return it, err
 			}

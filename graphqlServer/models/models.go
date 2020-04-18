@@ -24,7 +24,6 @@ type NewUser struct {
 	Email          string  `json:"email"`
 	Password       string  `json:"password"`
 	OrganisationID *string `json:"organisationId"`
-	Role           int     `json:"Role"`
 }
 
 type Organisation struct {

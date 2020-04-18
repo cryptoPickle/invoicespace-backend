@@ -3,8 +3,8 @@ package refreshToken
 import (
   "database/sql"
   "errors"
-  "github.com/cryptopickle/invoicespace/app/api"
-  "github.com/cryptopickle/invoicespace/db/psql"
+  "github.com/invoice-space/is-backend/app/api"
+  "github.com/invoice-space/is-backend/db/psql"
 )
 
 type Client struct {

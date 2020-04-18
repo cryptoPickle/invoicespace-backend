@@ -16,4 +16,4 @@ resolver:
   type: Resolver
 models:
   Halil:
-    model: github.com/cryptopickle/invoicespace/app/api.Todo
+    model: github.com/invoice-space/is-backend/app/api.Todo

@@ -3,18 +3,18 @@ package resolver
 import (
 	"context"
 	"errors"
-	"github.com/cryptopickle/invoicespace/app/api/organisations"
-	"github.com/cryptopickle/invoicespace/app/api/refreshToken"
-	"github.com/cryptopickle/invoicespace/app/api/roles"
-	"github.com/cryptopickle/invoicespace/app/api/user_pool"
-	"github.com/cryptopickle/invoicespace/app/api/users"
-	"github.com/cryptopickle/invoicespace/auth"
-	"github.com/cryptopickle/invoicespace/db/cache"
+	"github.com/invoice-space/is-backend/app/api/organisations"
+	"github.com/invoice-space/is-backend/app/api/refreshToken"
+	"github.com/invoice-space/is-backend/app/api/roles"
+	"github.com/invoice-space/is-backend/app/api/user_pool"
+	"github.com/invoice-space/is-backend/app/api/users"
+	"github.com/invoice-space/is-backend/auth"
+	"github.com/invoice-space/is-backend/db/cache"
 	"log"
 	"time"
 
-	"github.com/cryptopickle/invoicespace/graphqlServer"
-	"github.com/cryptopickle/invoicespace/graphqlServer/models"
+	"github.com/invoice-space/is-backend/graphqlServer"
+	"github.com/invoice-space/is-backend/graphqlServer/models"
 )
 
 // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
@@ -119,12 +119,22 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input models.NewUser)
 		Email:          input.Email,
 		Password:       string(pass),
 		OrganisationID: input.OrganisationID,
-		Role: &input.Role,
 	}
 	log.Println(u)
-	r.Users.CreateUser(u);
+	user, err := r.Users.CreateUser(u);
 
-	return u, nil
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.User{
+		ID:             user.ID,
+		FirstName:      user.FirstName,
+		LastName:       user.LastName,
+		Email:          user.Email,
+		OrganisationID: user.OrganisationID,
+		Role:           user.Role,
+	}, nil
 }
 func (r *mutationResolver) Login(ctx context.Context, email string, password string) (*models.Token, error) {
 	user, err := r.Users.GetUserByEmail(email);

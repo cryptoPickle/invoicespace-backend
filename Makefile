@@ -8,3 +8,6 @@ run-state:
 	docker kill users-redis | true
 	docker rm users-redis -f | true
 	docker run --name users-redis -p 6379:6379 -d redis
+
+run-dev: run-state
+	bash ./scripts/run-dev.sh

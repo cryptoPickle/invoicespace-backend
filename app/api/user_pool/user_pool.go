@@ -1,6 +1,6 @@
 package user_pool
 
-import "github.com/cryptopickle/invoicespace/db/psql"
+import "github.com/invoice-space/is-backend/db/psql"
 
 type Client struct {
   *psql.Client

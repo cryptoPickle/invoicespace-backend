@@ -9,8 +9,10 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"log"
+	"strings"
 )
 
 
@@ -83,3 +85,30 @@ func HandleError(err error) error {
 	}
 	return nil
 }
+
+type DuplicateError struct {
+	Column string
+}
+
+func (d *DuplicateError) Error() string {
+	return fmt.Sprintf("%s already exists", d.Column)
+}
+
+func (d *DuplicateError) UserMessage() string {
+	return d.Error()
+}
+
+func (d *DuplicateError) Status() int {
+	return 409
+}
+
+func IsDuplicateEntry(err error) *DuplicateError {
+	if pgeer, ok := err.(*pq.Error); ok {
+		if pgeer.Code == "23505" {
+			column := strings.Split(pgeer.Constraint, "_")[1]
+			return &DuplicateError{Column: column}
+		}
+	}
+	return nil
+}
+
